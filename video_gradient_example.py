@@ -2,85 +2,93 @@
 import cv2 as cv
 import numpy as np
 
-# The video feed is read in as
-# a VideoCapture object
-cap = cv.VideoCapture("P201229_070800_070900.avi")
 
-# ret = a boolean return value from
-# getting the frame, first_frame = the
-# first frame in the entire video sequence
-_, first_frame = cap.read()
-scale_percent = 50  # percent of original size
-width = int(first_frame.shape[1] * scale_percent / 100)
-height = int(first_frame.shape[0] * scale_percent / 100)
-dim = (width, height)
-first_frame = cv.resize(first_frame, dim)
-# Converts frame to grayscale because we
-# only need the luminance channel for
-# detecting edges - less computationally
-# expensive
-prev_gray = cv.cvtColor(first_frame, cv.COLOR_BGR2GRAY)
+def display_motion(video_path, scale=0.5, show_rgb_motion=True, show_gray_motion=True):
+    # The video feed is read in as
+    # a VideoCapture object
+    cap = cv.VideoCapture(video_path)
 
-# Creates an image filled with zero
-# intensities with the same dimensions
-# as the frame
-mask = np.zeros_like(first_frame)
+    # ret = a boolean return value from
+    # getting the frame, first_frame = the
+    # first frame in the entire video sequence
+    _, first_frame = cap.read()
 
-# Sets image saturation to maximum
-mask[..., 1] = 255
+    first_frame = cv.resize(first_frame, dsize=(0, 0), fx=scale, fy=scale)
+    # Converts frame to grayscale because we
+    # only need the luminance channel for
+    # detecting edges - less computationally
+    # expensive
+    prev_gray = cv.cvtColor(first_frame, cv.COLOR_BGR2GRAY)
 
-while cap.isOpened():
+    # Creates an image filled with zero
+    # intensities with the same dimensions
+    # as the frame
+    mask = np.zeros_like(first_frame)
 
-    # ret = a boolean return value from getting
-    # the frame, frame = the current frame being
-    # projected in the video
-    _, frame = cap.read()
-    scale_percent = 50  # percent of original size
-    width = int(frame.shape[1] * scale_percent / 100)
-    height = int(frame.shape[0] * scale_percent / 100)
-    dim = (width, height)
-    frame = cv.resize(frame, dim)
-    # Opens a new window and displays the input
-    # frame
-    cv.imshow("input", frame)
+    # Sets image saturation to maximum
+    mask[..., 1] = 255
 
-    # Converts each frame to grayscale - we previously
-    # only converted the first frame to grayscale
-    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    while cap.isOpened():
 
-    # Calculates dense optical flow by Farneback method
-    flow = cv.calcOpticalFlowFarneback(prev=prev_gray, next=gray,
-                                       flow=None, pyr_scale=0.5, levels=60, winsize=4, iterations=3,
-                                       poly_n=7, poly_sigma=1.2, flags=0)
+        # ret = a boolean return value from getting
+        # the frame, frame = the current frame being
+        # projected in the video
+        _, frame = cap.read()
+        if frame is None:
+            print('End of Video.')
+            break
 
-    # Computes the magnitude and angle of the 2D vectors
-    magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
+        frame = cv.resize(frame, dsize=(0, 0), fx=scale, fy=scale)
+        # frame = cv.resize(frame, dim)
+        # Opens a new window and displays the input
+        # frame
+        cv.imshow("input", frame)
 
-    # Sets image hue according to the optical flow
-    # direction
-    mask[..., 0] = angle * 180 / np.pi / 2
+        # Converts each frame to grayscale - we previously
+        # only converted the first frame to grayscale
+        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-    # Sets image value according to the optical flow
-    # magnitude (normalized)
-    mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
+        # Calculates dense optical flow by Farneback method
+        flow = cv.calcOpticalFlowFarneback(prev=prev_gray, next=gray,
+                                           flow=None, pyr_scale=0.5, levels=60, winsize=4, iterations=3,
+                                           poly_n=7, poly_sigma=1.2, flags=0)
 
-    # Converts HSV to RGB (BGR) color representation
-    rgb = cv.cvtColor(mask, cv.COLOR_HSV2BGR)
-    h, s, v1 = cv.split(mask)
+        # Computes the magnitude and angle of the 2D vectors
+        magnitude, angle = cv.cartToPolar(flow[..., 0], flow[..., 1])
 
-    # Opens a new window and displays the output frame
-    cv.imshow("dense optical flow", v1)
+        # Sets image hue according to the optical flow
+        # direction
+        mask[..., 0] = angle * 180 / np.pi / 2
 
-    # Updates previous frame
-    prev_gray = gray
+        # Sets image value according to the optical flow
+        # magnitude (normalized)
+        mask[..., 2] = cv.normalize(magnitude, None, 0, 255, cv.NORM_MINMAX)
 
-    # Frames are read by intervals of 1 millisecond. The
-    # programs breaks out of the while loop when the
-    # user presses the 'q' key
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
+        # Converts HSV to RGB (BGR) color representation
+        rgb = cv.cvtColor(mask, cv.COLOR_HSV2BGR)
+        h, s, v1 = cv.split(mask)
 
-# The following frees up resources and
-# closes all windows
-cap.release()
-cv.destroyAllWindows()
+        # Opens a new window and displays the output frame
+        if show_rgb_motion:
+            cv.imshow("dense optical flow rgb", rgb)
+        if show_gray_motion:
+            cv.imshow("dense optical flow gray", v1)
+
+        # Updates previous frame
+        prev_gray = gray
+
+        # Frames are read by intervals of 1 millisecond. The
+        # programs breaks out of the while loop when the
+        # user presses the 'q' key
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # The following frees up resources and
+    # closes all windows
+    cap.release()
+    cv.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    print("Press 'q' to quit.")
+    display_motion("P201229_070800_070900.avi")
