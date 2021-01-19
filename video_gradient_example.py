@@ -2,7 +2,11 @@
 import cv2 as cv
 import numpy as np
 import pathlib
+import matplotlib.pyplot as plt
+import os
+import pandas as pd
 
+import seaborn as sns
 
 def display_motion(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motion=True, show_gray_motion=True):
     # The video feed is read in as
@@ -90,8 +94,8 @@ def display_motion(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_
     cv.destroyAllWindows()
 
 
-
-def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motion=True, show_gray_motion=True):
+def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motion=True, show_gray_motion=True,
+              num_frames=20):
     # The video feed is read in as
     # a VideoCapture object
     cap = cv.VideoCapture(video_path)
@@ -115,8 +119,10 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
 
     # Sets image saturation to maximum
     mask[..., 1] = 255
-    index=0
-    return_val = 0
+    index = 1
+    return_val_full = 0
+    return_val_cut = 0
+
     while cap.isOpened():
 
         # ret = a boolean return value from getting
@@ -131,7 +137,8 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
         # frame = cv.resize(frame, dim)
         # Opens a new window and displays the input
         # frame
-        cv.imshow("input", frame)
+        if show_gray_motion or show_rgb_motion:
+            cv.imshow("input", frame)
 
         # Converts each frame to grayscale - we previously
         # only converted the first frame to grayscale
@@ -156,16 +163,21 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
         # Converts HSV to RGB (BGR) color representation
         rgb = cv.cvtColor(mask, cv.COLOR_HSV2BGR)
         h, s, v1 = cv.split(mask)
-
+        v1_cut = v1[250:700, 600:1100]
         # Opens a new window and displays the output frame
-        # if show_rgb_motion:
-        #     cv.imshow("dense optical flow rgb", rgb)
+        if show_rgb_motion:
+            cv.imshow("dense optical flow rgb", rgb)
         if show_gray_motion:
             cv.imshow("dense optical flow gray", v1)
-        return_val+=v1.mean()
-        if index ==2:
-            return return_val
-        index+=1
+        if show_gray_motion:
+            cv.imshow("dense optical flow gray cutout", v1_cut)
+        return_val_full += np.mean(v1)
+        return_val_cut += np.max(v1_cut)
+        if index == num_frames:
+            cap.release()
+
+            return return_val_full / index, return_val_cut / index
+        index += 1
         # Updates previous frame
         prev_gray = gray
 
@@ -179,6 +191,14 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
     # closes all windows
     cap.release()
     cv.destroyAllWindows()
+    return return_val_full / index, return_val_cut / index
+
+
+"""
+top left: 600, 250
+top right: 1100, 250
+bottom: 700
+"""
 
 
 def get_paths():
@@ -186,53 +206,85 @@ def get_paths():
     currentDirectory = pathlib.Path('./OneDrive_2_17-01-2021')
     # define the pattern
     currentPattern = "*.avi"
-    video_paths= []
+    video_paths = []
     for currentFile in currentDirectory.glob(currentPattern):
         print(currentFile)
-        minute=int(currentFile.stem[-11:-9])
+        minute = int(currentFile.stem[-11:-9])
+        # minute = int(currentFile.stem[-4:-2])
         if minute % 5 == 0:
             video_paths.append(currentFile)
     return video_paths
 
-import os
-import pandas as pd
-if __name__ == '__main__':
 
-    get_video_stats = True
-    if get_video_stats:
-        paths = get_paths()
-        print(paths)
-        print("Press 'q' to quit.")
-        vals = []
-        for path in paths:
-            val = get_stats(video_path=os.path.join('./OneDrive_2_17-01-2021',path.name),
-                      resize_scale=0.8, levels=20, winsize=4,
-                      show_rgb_motion=True, show_gray_motion=False)
-            vals.append(val)
-        print(vals)
 
+
+
+def main():
     df = pd.read_excel('z6-04349(z6-04349)-1610875144.xlsx',
                        sheet_name='Configuration 1',
-                       header=2, usecols=['Timestamps',' m/s Wind Speed'],
-                       index_col=0).dropna().between_time('07:00:00', '08:35:00')
-    df['video_val']=vals
-    print(df.corr())
-    df.hist()
-    pass
+                       header=2, usecols=['Timestamps', ' m/s Wind Speed', ' m/s Gust Speed'],
+                       index_col=0).dropna().between_time('07:00:00', '17:44:00')
 
+    paths = get_paths()
+    print(paths)
+    print("Press 'q' to quit.")
+    # vals = []
+    # vals_cut = []
+    # for indx, path in enumerate(paths):
+    #    print(path)
+    #    val, val_cut = get_stats(video_path=os.path.join('./OneDrive_2_17-01-2021', path.name),
+    #                             resize_scale=1, levels=1, winsize=4,
+    #                             show_rgb_motion=True, show_gray_motion=True, num_frames=40)
+    #    vals.append(val)
+    #    vals_cut.append(val_cut)
+    #    if len(vals)==len(df):
+    #        break
+    # print(vals)
+    # print(vals_cut)
+    # cv.destroyAllWindows()
+
+    # 40 frames, between_time('07:00:00', '17:44:00'), resize_scale=0.8, levels=1, winsize=4,
+    # vals = [2.960183188356001, 3.573699951171875, 5.09983100420163, 3.638677714783468, 4.302899753900222, 4.525741972746671, 3.5154221334575135, 5.883589530285493, 3.7697931548695514, 4.631827008282697, 3.7480234593520927, 3.909556730293933, 2.992668264883535, 4.4249002904067805, 2.5893580683955437, 2.7361432110821764, 2.3512735249083723, 4.333080037434896, 2.155874803331163, 2.7971161830572435, 2.1252620555736397, 2.397628087173273, 2.1796150301709587, 2.5239340322989, 2.337913513183594, 2.497829766921055, 1.9511263435269577, 2.465129089355469, 1.5242280559775274, 1.9033770902657214, 3.38627818543234, 3.0567101372612844, 4.132598933467158, 2.8629363448531544, 4.384891820836951, 2.443188495400511, 4.368668977713879, 2.250446686921296, 3.7801239955572434, 3.5489375173309705, 3.318651621956729, 3.5363610538435575, 3.6651543888044955, 3.636023514359086, 2.90377244360653, 3.4321129504545227, 3.2571487615137924, 3.7359056072470573, 4.128651786144867, 4.461869454089506, 4.174685103804976, 3.9024512208538282, 3.1643345773955915, 4.371897643289448, 2.891650013864777, 4.543621675467786, 5.6561337694709675, 4.338562689887152, 5.288275798669314, 4.607771320107542, 6.415146627543885, 2.593514920458381, 4.676713015709394, 4.476211321795427, 4.910565505793064, 3.9823368590555064, 4.984802340283805, 4.605336243429301, 3.309140749330875, 3.404384492683149, 4.656200644410687, 4.905572366993329, 4.855786596822462, 4.295453483675733, 2.4895999861352243, 5.009061592007861, 4.167841781804589, 5.323430699477962, 3.76244465392313, 6.258507226023137, 5.681622766565393, 4.798616423430266, 5.417231712812258, 4.682975884164148, 3.4834492247781625, 3.887790971920815, 4.839866958429783, 2.958713145314911, 3.4810501098632805, 2.404289547013648, 4.172451744550541, 3.1248964662905094, 5.409016041696807, 2.601462978786893, 2.763088311089409, 5.102267192322531, 3.6051486168378672, 3.925499433352621, 2.7230779953944833, 4.304321345576535, 6.472115316508727, 2.9689541663652594, 3.7332855601369594, 1.7386712345076198, 2.5551819412796584, 4.003097797911844, 2.572625694745852, 0.9589193461853782, 2.4354880627290703, 2.1227587287808642, 2.987096791208526, 1.9831630753882137, 2.1409592239945026, 3.265512197989005, 2.1158420138888894, 2.7134005888008788, 2.338218707802855, 2.4112029652536644, 2.8345964596595303, 2.934379238552518, 1.689573707109616, 1.616340109742718, 2.1681472966700417, 1.4673855063356, 2.045680670090664, 1.310308649510513, 1.217309589150511, 1.9213488731855228, 2.23963798240379]
+    df['Mean Optical Flow'] = vals  # / max(vals)
+    # df['Mean Optical Flow Cut'] = vals_cut #/ max(vals_cut)
+    # df['wind_normalized'] = df[' m/s Wind Speed']/df[' m/s Wind Speed'].max()
+    # df['wind_normalized Gust'] = df[' m/s Gust Speed']/df[' m/s Gust Speed'].max()
+    # df= df.drop([' m/s Wind Speed',' m/s Gust Speed'], axis=1)
+    print(df.corr())
+    # fix, ax = plt.subplots(2, sharex=True, figsize=(12, 6))
+    # df.loc[:, ['video_val', 'video_val_cut']].plot.line(ax=ax[0])
+    # df.loc[:, [' m/s Wind Speed', ' m/s Gust Speed']].plot.line(ax=ax[1])
+    # plt.show()
+    df['Wind Speed [m/s]'] = df[' m/s Wind Speed']
+    df.loc[:, ['Mean Optical Flow', 'Wind Speed [m/s]']].plot.line(subplots=True)
+    plt.suptitle("Mean Optical Flow  & Wind Speed over Time")
+    plt.xlabel("")
+    plt.show()
+    # df.plot.scatter(' m/s Wind Speed', 'video_val')
+    plt.xlim(0, 5)
+    plt.ylim(0, 7)
+    # plt.show()
+    pass
+    print(1)
+    pass
+    sns.set_theme(color_codes=True)
+    sns.regplot(x='Wind Speed [m/s]', y='Mean Optical Flow', data=df, truncate=False)
+    # plt.xlabel('Wind Speed [m/s]')
+    # plt.ylabel('Mean Optical Flow')
+    plt.title('Mean Optical Flow vs Wind Speed')
+    plt.show()
     # while True:
     #
     #     display_motion(video_path="P201229_070800_070900.avi",
     #                    resize_scale=0.8, levels=30, winsize=10,
     #                    show_rgb_motion=True, show_gray_motion=True)
 
+    """
+    levels=12/20, winsize=4:  0.270269
+    first 3 imgs : 0.281592, 0.306387
 
-"""
-levels=12/20, winsize=4:  0.270269
-
-"""
-
-
+    """
 
 
-
+if __name__ == '__main__':
+    main()
