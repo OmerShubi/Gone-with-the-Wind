@@ -166,6 +166,8 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
         h, s, v1 = cv.split(mask)
         v1_cut = v1[250:700, 600:1100]
         # Opens a new window and displays the output frame
+        if show_rgb_motion or show_gray_motion:
+            cv.waitKey(1)
         if show_rgb_motion:
             cv.imshow("dense optical flow rgb", rgb)
         if show_gray_motion:
@@ -179,23 +181,17 @@ def get_stats(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motio
 
         if index == num_frames:
             cap.release()
-            return return_val_full / (index-1), return_val_cut / (index-1)
+            return return_val_full / (index - 1), return_val_cut / (index - 1)
 
         index += 1
         # Updates previous frame
         prev_gray = gray
 
-        # Frames are read by intervals of 1 millisecond. The
-        # programs breaks out of the while loop when the
-        # user presses the 'q' key
-        if cv.waitKey(1) & 0xFF == ord('q'):
-            break
-
     # The following frees up resources and
     # closes all windows
     cap.release()
     cv.destroyAllWindows()
-    return return_val_full / index, return_val_cut / index
+    return return_val_full / (index - 1), return_val_cut / (index - 1)
 
 
 """
@@ -233,19 +229,19 @@ def main():
               'end_date': '2020-12-18',
               'start_time': '09:10:00',
               'end_time': '11:49:00'}
+    config = {'excel_path': 'z6-04349(z6-04349)-1610875144.xlsx',
+              'video_path': './OneDrive_2_17-01-2021',
+              'start_date': '2020-12-29',
+              'end_date': '2020-12-29',
+              'start_time': '14:00:00',  # 07:00
+              'end_time': '17:20:00'}  # 17:45
 
-    excel_path =config['excel_path']
+    excel_path = config['excel_path']
     video_path = config['video_path']
     start_date = config['start_date']
     end_date = config['end_date']
     start_time = config['start_time']
     end_time = config['end_time']
-    # excel_path = 'z6-04349(z6-04349)-1610875144.xlsx'
-
-    # video_path = './OneDrive_2_17-01-2021'
-
-    # start_time = '10:00:00'
-    # end_time = '17:44:00'
 
     df = pd.read_excel(excel_path,
                        sheet_name='Configuration 1',
@@ -253,15 +249,17 @@ def main():
                        index_col=0).dropna().loc[start_date:end_date].between_time(start_time, end_time)
 
     paths = get_paths(video_path=video_path)
+    paths = paths[84:]
     print(paths)
-    print("Press 'q' to quit.")
+
     vals = []
     vals_cut = []
     for indx, path in enumerate(paths):
-        print(path)
+
         val, val_cut = get_stats(video_path=os.path.join(video_path, path.name),
-                                 resize_scale=0.5, levels=30, winsize=1,
-                                 show_rgb_motion=True, show_gray_motion=True, num_frames=4)
+                                 resize_scale=0.5, levels=80, winsize=4,
+                                 show_rgb_motion=False, show_gray_motion=False, num_frames=40)
+        print(path, df.iloc[indx, :], val, val_cut)
         vals.append(val)
         vals_cut.append(val_cut)
         if len(vals) == len(df):
@@ -311,7 +309,8 @@ def main():
     first 3 imgs : 0.281592, 0.306387
 
     """
-
+    pass
+    print(1)
 
 if __name__ == '__main__':
     main()
