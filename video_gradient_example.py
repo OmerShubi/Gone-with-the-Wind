@@ -7,6 +7,7 @@ import os
 import pandas as pd
 
 import seaborn as sns
+sns.set_theme(color_codes=True)
 
 
 def display_motion(video_path, resize_scale=0.5, levels=60, winsize=4, show_rgb_motion=True, show_gray_motion=True):
@@ -230,7 +231,7 @@ def run_computations(config):
                        index_col=0).dropna().loc[start_date:end_date].between_time(start_time, end_time)
 
     paths = get_paths(video_path=video_path)
-    paths = paths[84:]
+    paths = paths[84:]  # TODO generalize, currently manual way to start at correct time!
     print(paths)
 
     vals = []
@@ -239,7 +240,7 @@ def run_computations(config):
 
         val, val_cut = get_stats(video_path=os.path.join(video_path, path.name),
                                  resize_scale=0.5, levels=80, winsize=4,
-                                 show_rgb_motion=False, show_gray_motion=False, num_frames=40)
+                                 show_rgb_motion=False, show_gray_motion=False, num_frames=80)
         print(path, df.iloc[indx, :], val, val_cut)
         vals.append(val)
         vals_cut.append(val_cut)
@@ -250,9 +251,26 @@ def run_computations(config):
     cv.destroyAllWindows()
     df['Mean Optical Flow'] = vals
 
-    df['Wind Speed [m/s]'] = df['m/s Wind Speed']
+    df['Wind Speed [m/s]'] = df[' m/s Wind Speed']
 
     return df
+
+
+def result_visualizer(df):
+    corr_wind_flow = df.corr().loc['Mean Optical Flow', 'Wind Speed [m/s]']
+    print("corr wind flow:", corr_wind_flow)
+
+    df.loc[:, ['Mean Optical Flow', 'Wind Speed [m/s]']].plot.line(subplots=True)
+    plt.suptitle("Mean Optical Flow  & Wind Speed over Time")
+    plt.xlabel("")
+    plt.show()
+
+    plt.xlim(0, 5)
+    plt.ylim(0, 7)
+    sns.regplot(x='Wind Speed [m/s]', y='Mean Optical Flow', data=df, truncate=False)
+    plt.title('Mean Optical Flow vs Wind Speed')
+    plt.show()
+
 
 def main():
     # config = {'excel_path': 'z6-04349(z6-04349)-1611065058.xlsx',
@@ -274,19 +292,14 @@ def main():
               'start_time': '14:00:00',  # 07:00
               'end_time': '17:20:00'}  # 17:45
     df = run_computations(config)
-    print(df.corr())
-    df.loc[:, ['Mean Optical Flow', 'Wind Speed [m/s]']].plot.line(subplots=True)
-    plt.suptitle("Mean Optical Flow  & Wind Speed over Time")
-    plt.xlabel("")
-    plt.show()
-    plt.xlim(0, 5)
-    plt.ylim(0, 7)
+    result_visualizer(df)
+    df_shift = df.copy()
+    df_shift['Mean Optical Flow'] = df_shift['Mean Optical Flow'].shift(1)
+    df_shift.dropna(inplace=True)
+    result_visualizer(df_shift)
 
-    sns.set_theme(color_codes=True)
-    sns.regplot(x='Wind Speed [m/s]', y='Mean Optical Flow', data=df, truncate=False)
-
-    plt.title('Mean Optical Flow vs Wind Speed')
-    plt.show()
+    pass
+    pass
 
 
 if __name__ == '__main__':
