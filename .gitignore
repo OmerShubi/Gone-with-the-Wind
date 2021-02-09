@@ -9,7 +9,7 @@
 *.zip
 *.xlsx
 .idea
-.results
+/results/
 
 .idea/**/workspace.xml
 .idea/**/tasks.xml
