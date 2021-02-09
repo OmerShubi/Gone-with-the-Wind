@@ -280,7 +280,7 @@ def main():
               'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 84}  # 17:45
 
     logger = create_and_configer_logger("log.log")
-    logger.debug("------- NEW RUN")
+    logger.debug("------- NEW RUN -------")
     if not os.path.exists('results'):
         os.mkdir('results')
     save_path = os.path.join('results', datetime.now().strftime("%d%m%Y_%H%M%S"))

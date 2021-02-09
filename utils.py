@@ -57,3 +57,6 @@ def result_visualizer(df, save_path, shift_str=''):
     plt.title('Mean Optical Flow vs Wind Speed')
     plt.savefig(os.path.join(save_path, f'flow_vs_wind{shift_str}.png'))
     plt.show()
+
+
+
