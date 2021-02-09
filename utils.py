@@ -44,7 +44,6 @@ def result_visualizer(df, save_path, shift_str=''):
     corr_wind_flow = df.corr().loc['Mean Optical Flow', 'Wind Speed [m/s]']
     logger.debug(f"corr wind flow {shift_str}: {corr_wind_flow}")
 
-
     df.loc[:, ['Mean Optical Flow', 'Wind Speed [m/s]']].plot.line(subplots=True)
     plt.suptitle("Mean Optical Flow  & Wind Speed over Time")
     plt.xlabel("")

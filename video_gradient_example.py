@@ -187,8 +187,8 @@ def main():
     #           'start_time': '09:10:00',
     #           'end_time': '11:49:00'}
     config = {'excel_path': 'z6-04349(z6-04349)-1610875144.xlsx', 'video_path': './OneDrive_2_17-01-2021',
-              'start_date': '2020-12-29', 'end_date': '2020-12-29', 'start_time': '14:00:00', 'end_time': '17:20:00',
-              'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 84}  # 17:45
+              'start_date': '2020-12-29', 'end_date': '2020-12-29', 'start_time': '07:00:00', 'end_time': '17:20:00',
+              'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 0}  # 17:45
 
     logger = create_and_configer_logger("log.log")
     logger.debug("------- NEW RUN -------")
