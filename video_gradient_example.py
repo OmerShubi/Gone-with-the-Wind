@@ -1,12 +1,16 @@
 # https://www.geeksforgeeks.org/python-opencv-dense-optical-flow/
+import logging
+from datetime import datetime
 import cv2 as cv
 import numpy as np
 import pathlib
-import matplotlib.pyplot as plt
 import os
 import pandas as pd
 
 import seaborn as sns
+
+from utils import result_visualizer, create_and_configer_logger
+
 sns.set_theme(color_codes=True)
 
 
@@ -209,7 +213,7 @@ def get_paths(video_path):
     currentPattern = "*.avi"
     video_paths = []
     for currentFile in currentDirectory.glob(currentPattern):
-        print(currentFile)
+        # print(currentFile)
         minute = int(currentFile.stem[-11:-9])
         # minute = int(currentFile.stem[-4:-2])
         if minute % 5 == 0:
@@ -217,59 +221,45 @@ def get_paths(video_path):
     return video_paths
 
 
-def run_computations(config):
-    excel_path = config['excel_path']
-    video_path = config['video_path']
-    start_date = config['start_date']
-    end_date = config['end_date']
-    start_time = config['start_time']
-    end_time = config['end_time']
+def run_computations(config) -> pd.DataFrame:
+    logger = logging.getLogger()
 
-    df = pd.read_excel(excel_path,
+    video_path = config['video_path']
+
+    df = pd.read_excel(config['excel_path'],
                        sheet_name='Configuration 1',
                        header=2, usecols=['Timestamps', ' m/s Wind Speed', ' m/s Gust Speed'],
-                       index_col=0).dropna().loc[start_date:end_date].between_time(start_time, end_time)
+                       index_col=0).dropna().loc[config['start_date']:config['end_date']].between_time(
+        config['start_time'], config['end_time'])
 
     paths = get_paths(video_path=video_path)
-    paths = paths[84:]  # TODO generalize, currently manual way to start at correct time!
-    print(paths)
+    paths = paths[config['vid_start_index']:]  # TODO generalize, currently manual way to start at correct time!
+    # print(paths)
 
     vals = []
     vals_cut = []
     for indx, path in enumerate(paths):
 
         val, val_cut = get_stats(video_path=os.path.join(video_path, path.name),
-                                 resize_scale=0.5, levels=80, winsize=4,
-                                 show_rgb_motion=False, show_gray_motion=False, num_frames=80)
+                                 resize_scale=config['resize_scale'], levels=config['levels'],
+                                 winsize=config['winsize'],
+                                 show_rgb_motion=False, show_gray_motion=False, num_frames=config['num_frames'])
         print(path, df.iloc[indx, :], val, val_cut)
         vals.append(val)
         vals_cut.append(val_cut)
         if len(vals) == len(df):
             break
-    print(vals)
-    print(vals_cut)
+    logger.debug(f"optical flow vals: {vals}")
+    logger.debug(f"optical flow vals cut: {vals_cut}")
     cv.destroyAllWindows()
     df['Mean Optical Flow'] = vals
 
     df['Wind Speed [m/s]'] = df[' m/s Wind Speed']
-
+    df = df.drop(columns=[' m/s Wind Speed'])
     return df
 
 
-def result_visualizer(df):
-    corr_wind_flow = df.corr().loc['Mean Optical Flow', 'Wind Speed [m/s]']
-    print("corr wind flow:", corr_wind_flow)
-
-    df.loc[:, ['Mean Optical Flow', 'Wind Speed [m/s]']].plot.line(subplots=True)
-    plt.suptitle("Mean Optical Flow  & Wind Speed over Time")
-    plt.xlabel("")
-    plt.show()
-
-    plt.xlim(0, 5)
-    plt.ylim(0, 7)
-    sns.regplot(x='Wind Speed [m/s]', y='Mean Optical Flow', data=df, truncate=False)
-    plt.title('Mean Optical Flow vs Wind Speed')
-    plt.show()
+from sklearn.linear_model import LinearRegression
 
 
 def main():
@@ -285,20 +275,31 @@ def main():
     #           'end_date': '2020-12-18',
     #           'start_time': '09:10:00',
     #           'end_time': '11:49:00'}
-    config = {'excel_path': 'z6-04349(z6-04349)-1610875144.xlsx',
-              'video_path': './OneDrive_2_17-01-2021',
-              'start_date': '2020-12-29',
-              'end_date': '2020-12-29',
-              'start_time': '14:00:00',  # 07:00
-              'end_time': '17:20:00'}  # 17:45
+    config = {'excel_path': 'z6-04349(z6-04349)-1610875144.xlsx', 'video_path': './OneDrive_2_17-01-2021',
+              'start_date': '2020-12-29', 'end_date': '2020-12-29', 'start_time': '14:00:00', 'end_time': '17:20:00',
+              'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 84}  # 17:45
+
+    logger = create_and_configer_logger("log.log")
+    logger.debug("------- NEW RUN")
+    if not os.path.exists('results'):
+        os.mkdir('results')
+    save_path = os.path.join('results', datetime.now().strftime("%d%m%Y_%H%M%S"))
+    os.mkdir(save_path)
+
+    logger.debug(config)
+
     df = run_computations(config)
-    result_visualizer(df)
+
+    df.to_csv(os.path.join(save_path, "df.csv"))
+    result_visualizer(df, save_path)
     df_shift = df.copy()
     df_shift['Mean Optical Flow'] = df_shift['Mean Optical Flow'].shift(1)
     df_shift.dropna(inplace=True)
-    result_visualizer(df_shift)
+    df_shift.to_csv(os.path.join(save_path, 'df_shift.csv'))
+    result_visualizer(df_shift, save_path, shift_str='_shift_5')
 
     pass
+    print(1)
     pass
 
 
