@@ -143,7 +143,7 @@ def run_computations(config) -> pd.DataFrame:
     df = pd.read_excel(config['excel_path'],
                        sheet_name='Configuration 1',
                        header=2, usecols=['Timestamps', ' m/s Wind Speed', ' m/s Gust Speed'],
-                       index_col=0).dropna().loc[config['start_date']:config['end_date']].between_time(
+                       index_col=0, engine='openpyxl').dropna().loc[config['start_date']:config['end_date']].between_time(
         config['start_time'], config['end_time'])
 
     paths = get_paths(video_path=video_path)
@@ -157,7 +157,7 @@ def run_computations(config) -> pd.DataFrame:
         val, val_cut = get_stats(video_path=os.path.join(video_path, path.name),
                                  resize_scale=config['resize_scale'], levels=config['levels'],
                                  winsize=config['winsize'],
-                                 show_rgb_motion=False, show_gray_motion=False, num_frames=config['num_frames'])
+                                 show_rgb_motion=True, show_gray_motion=False, num_frames=config['num_frames'])
         print(path, df.iloc[indx, :], val, val_cut)
         vals.append(val)
         vals_cut.append(val_cut)
@@ -186,9 +186,10 @@ def main():
     #           'end_date': '2020-12-18',
     #           'start_time': '09:10:00',
     #           'end_time': '11:49:00'}
+    # Was start_time 14:00 and vid_start_index 84
     config = {'excel_path': 'z6-04349(z6-04349)-1610875144.xlsx', 'video_path': './OneDrive_2_17-01-2021',
               'start_date': '2020-12-29', 'end_date': '2020-12-29', 'start_time': '07:00:00', 'end_time': '17:20:00',
-              'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 0}  # 17:45
+              'num_frames': 80, 'winsize': 4, 'levels': 80, 'resize_scale': 0.5, 'vid_start_index': 0}
 
     logger = create_and_configer_logger("log.log")
     logger.debug("------- NEW RUN -------")
